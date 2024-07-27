@@ -517,11 +517,29 @@ func portsToString(ports []types.PortMapping, exposedPorts map[uint16][]string) 
 		sortedPorts = append(sortedPorts, port)
 	}
 	slices.Sort(sortedPorts)
-	for _, port := range sortedPorts {
+
+	// Group continuous ports
+	var start, end uint16
+	for i, port := range sortedPorts {
 		for _, protocol := range exposedPorts[port] {
-			// exposed ports do not have a host part and are just written as "NUM/PROTO"
-			fmt.Fprintf(sb, "%d/%s, ", port, protocol)
+			if i == 0 {
+				start, end = port, port
+			} else if port == end+1 {
+				end = port
+			} else {
+				if start == end {
+					fmt.Fprintf(sb, "%d/%s, ", start, protocol)
+				} else {
+					fmt.Fprintf(sb, "%d-%d/%s, ", start, end, protocol)
+				}
+				start, end = port, port
+			}
 		}
+	}
+	if start == end {
+		fmt.Fprintf(sb, "%d/%s, ", start, exposedPorts[start][0])
+	} else {
+		fmt.Fprintf(sb, "%d-%d/%s, ", start, end, exposedPorts[start][0])
 	}
 
 	display := sb.String()
